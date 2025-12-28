@@ -1,22 +1,11 @@
 import streamlit as st
 import numpy as np
 from PIL import Image
+import plotly.graph_objects as go
+import google.generativeai as genai
 
-# Safe Plotly Import
-try:
-    import plotly.graph_objects as go
-    PLOTLY_OK = True
-except:
-    PLOTLY_OK = False
-
-# Safe Gemini Import
-try:
-    import google.generativeai as genai
-    GEMINI_OK = True
-except:
-    GEMINI_OK = False
-
-st.set_page_config(page_title="Universal AFM Nano Lab", layout="wide")
+# ---------------- PAGE CONFIG ----------------
+st.set_page_config(page_title="AFM Nano Research Lab", layout="wide")
 
 st.markdown("""
 <style>
@@ -26,20 +15,16 @@ h1,h2,h3{color:#00f7ff}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🧬 Universal AFM Nano Research Dashboard")
+st.title("🧬 AFM Nano Research Lab — Gemini Powered")
 
-# ---------------- Sidebar ----------------
-st.sidebar.header("AFM Settings")
-mode = st.sidebar.selectbox("AFM Mode", ["Contact", "Tapping", "Non-Contact", "STM"])
+# ---------------- SIDEBAR ----------------
+st.sidebar.header("Gemini AI Scientist")
+mode = st.sidebar.selectbox("AFM Mode", ["Contact","Tapping","Non-Contact","STM"])
+api_key = st.sidebar.text_input("Gemini API Key", type="password")
+report_goal = st.sidebar.text_area("Scientific Goal",
+    "Write a complete AFM morphology and roughness research report.")
 
-if GEMINI_OK:
-    api_key = st.sidebar.text_input("Gemini API Key", type="password")
-    report_goal = st.sidebar.text_area("Report Objective",
-        "Write a scientific AFM morphology & roughness report.")
-else:
-    st.sidebar.warning("Gemini not installed.")
-
-# ---------------- Upload ----------------
+# ---------------- MAIN ----------------
 file = st.file_uploader("Upload AFM Height Map", ["png","jpg","tif"])
 
 if file:
@@ -53,32 +38,29 @@ if file:
     Rq = np.sqrt(np.mean((Z - Z.mean())**2))
 
     st.markdown(f"""
-    ### Surface Roughness
+    ### Surface Parameters  
     **Mode:** {mode}  
     **Ra:** {Ra:.3f} nm  
     **Rq:** {Rq:.3f} nm
     """)
 
-    # 3D Plot
-    if PLOTLY_OK:
-        X, Y = np.meshgrid(np.arange(Z.shape[1]), np.arange(Z.shape[0]))
-        fig = go.Figure(go.Surface(z=Z, x=X, y=Y, colorscale="Turbo"))
-        fig.update_layout(title="3D AFM Nano Surface",
-            paper_bgcolor="black",
-            scene=dict(
-                xaxis_title="X (nm)",
-                yaxis_title="Y (nm)",
-                zaxis_title="Height (nm)"
-            ))
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.error("Plotly missing. Install plotly to enable 3D surface.")
+    # 3D Surface
+    X, Y = np.meshgrid(np.arange(Z.shape[1]), np.arange(Z.shape[0]))
+    fig = go.Figure(go.Surface(z=Z, x=X, y=Y, colorscale="Turbo"))
+    fig.update_layout(title="3D AFM Nano Topography",
+        paper_bgcolor="black",
+        scene=dict(xaxis_title="X nm", yaxis_title="Y nm", zaxis_title="Height (nm)"))
+    st.plotly_chart(fig, use_container_width=True)
 
     # Gemini Report
-    if GEMINI_OK and api_key and st.button("Generate AI Scientific Report"):
+    if api_key and st.button("Generate Gemini Research Report"):
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-pro")
-        prompt = f"AFM Mode: {mode}, Ra={Ra:.3f}, Rq={Rq:.3f}. {report_goal}"
-        report = model.generate_content(prompt)
-        st.markdown("## AI Generated Report")
-        st.write(report.text)
+        model = genai.GenerativeModel("gemini-1.5-pro")
+        prompt = f"""
+        AFM Mode: {mode}
+        Ra={Ra:.3f} nm, Rq={Rq:.3f} nm.
+        {report_goal}
+        """
+        response = model.generate_content(prompt)
+        st.markdown("## Gemini AI Generated Research Report")
+        st.write(response.text)
